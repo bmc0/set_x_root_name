@@ -7,7 +7,6 @@ Set_x_root_name is a tiny utility to set the root window name to the last line r
 #### Dependencies:
 
 * libxcb
-* dash
 
 #### Build:
 
