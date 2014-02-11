@@ -22,12 +22,12 @@ void sigh(int sig)
 
 int main(int argc, char *argv[])
 {
-	int i, sn;
-	int c = '\0';
+	int i, c = '\0';
 
-	xc = xcb_connect(NULL, &sn);
-	if (xc == NULL) {
+	xc = xcb_connect(NULL, NULL);
+	if (xcb_get_setup(xc) == NULL) {
 		fprintf(stderr, "%s: unable to open display\n", argv[0]);
+		xcb_disconnect(xc);
 		exit(2);
 	}
 	screen = xcb_setup_roots_iterator(xcb_get_setup(xc)).data;
