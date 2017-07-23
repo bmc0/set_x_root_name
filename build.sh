@@ -10,7 +10,6 @@ CFLAGS="-I/usr/X11R6/include -ansi -pedantic -Os -Wall $CFLAGS"
 LDFLAGS="-L/usr/X11R6/lib -lxcb $LDFLAGS"
 EXEC_NAME="set_x_root_name"
 
-$CC -o $EXEC_NAME set_x_root_name.c $CFLAGS $LDFLAGS || fail $?
-strip -s $EXEC_NAME || echo "strip failed..."
+$CC -o $EXEC_NAME set_x_root_name.c $CFLAGS $LDFLAGS $CPPFLAGS || fail $?
 
 echo ">> Build successful"
