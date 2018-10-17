@@ -6,7 +6,7 @@ fail() {
 }
 
 [ -z "$CC" ] && CC="gcc"
-CFLAGS="-I/usr/X11R6/include -ansi -pedantic -Os -Wall $CFLAGS"
+CFLAGS="-I/usr/X11R6/include -Os -Wall $CFLAGS"
 LDFLAGS="-L/usr/X11R6/lib -lxcb $LDFLAGS"
 EXEC_NAME="set_x_root_name"
 

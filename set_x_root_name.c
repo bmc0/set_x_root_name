@@ -1,53 +1,58 @@
-/* Sets the root window name every time a line is read from stdin to the
-   contents of the line read.
-*/
-
-#include <xcb/xcb.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <xcb/xcb.h>
 
-#define NAME_LENGTH 1024  /* maximum number of characters read per line */
+#define NAME_LENGTH 1024  /* maximum number of characters to read per line */
 
-static xcb_connection_t *xc;
-static xcb_screen_t *screen;
-static char name[NAME_LENGTH];
+static volatile sig_atomic_t term_sig = 0;
 
-void sigh(int sig)
+void sig_handler_term(int sig)
 {
-	fprintf(stderr, "Signal %d, exiting...\n", sig);
-	xcb_disconnect(xc);
-	exit(1);
+	term_sig = sig;
 }
 
 int main(int argc, char *argv[])
 {
-	int i, c = '\0';
+	xcb_connection_t *xc;
+	xcb_screen_t *screen;
+	struct sigaction sa;
+	static char name[NAME_LENGTH];
+	int i, ret = 0, c = '\0';
+
+	sa.sa_handler = sig_handler_term;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 
 	xc = xcb_connect(NULL, NULL);
-	if (xcb_get_setup(xc) == NULL) {
-		fprintf(stderr, "%s: unable to open display\n", argv[0]);
-		xcb_disconnect(xc);
-		exit(2);
+	if (xcb_connection_has_error(xc)) {
+		fprintf(stderr, "%s: xcb_connect() failed\n", argv[0]);
+		ret = 2;
+		goto done;
 	}
 	screen = xcb_setup_roots_iterator(xcb_get_setup(xc)).data;
 
-	signal(SIGINT, sigh);
-	signal(SIGTERM, sigh);
-
 	while (c != EOF) {
-		for (i = 0; i < NAME_LENGTH; ++i) {
+		for (i = 0;; ++i) {
 			c = getchar();
-			if (c == '\n' || c == EOF)
-				break;
-			name[i] = c;
+			if (c == '\n' || c == EOF) break;
+			if (i < NAME_LENGTH) name[i] = c;
 		}
-		if (c != EOF) {
-			xcb_change_property(xc, XCB_PROP_MODE_REPLACE, screen->root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, i, name);
-			xcb_flush(xc);
+		if (term_sig) goto got_term_sig;
+		if (xcb_connection_has_error(xc)) {
+			fprintf(stderr, "%s: fatal connection error\n", argv[0]);
+			ret = 1;
+			goto done;
 		}
+		if (xcb_request_check(xc, xcb_change_property(xc, XCB_PROP_MODE_REPLACE, screen->root, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, i, name)) != NULL)
+			fprintf(stderr, "%s: xcb_change_property() failed\n", argv[0]);
 	}
+	done:
 	xcb_disconnect(xc);
+	return ret;
 
-	return 0;
+	got_term_sig:
+	fprintf(stderr, "%s: signal %d: terminating...\n", argv[0], term_sig);
+	goto done;
 }
